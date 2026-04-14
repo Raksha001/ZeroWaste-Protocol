@@ -1,0 +1,38 @@
+{
+  "name": "smart-sweep-checkout",
+  "version": "1.0.0",
+  "description": "A Web3 agentic payment bot that pays x402 invoices by sweeping wallet dust tokens via OKX Onchain OS on X Layer",
+  "main": "dist/bot/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start:bot": "tsx src/bot/index.ts",
+    "start:merchant": "tsx src/merchant/server.ts",
+    "dev": "concurrently \"npm run start:merchant\" \"npm run start:bot\"",
+    "test": "tsx src/test/runMockFlow.ts",
+    "compile": "npx hardhat compile",
+    "deploy": "npx hardhat run scripts/deploy.ts --network xlayer"
+  },
+  "keywords": ["x402", "xlayer", "okx", "onchain-os", "agentic-wallet", "dust-sweep", "telegram-bot"],
+  "author": "",
+  "license": "MIT",
+  "type": "commonjs",
+  "dependencies": {
+    "telegraf": "^4.16.0",
+    "express": "^4.21.0",
+    "ethers": "^6.13.0",
+    "axios": "^1.7.0",
+    "dotenv": "^16.4.0",
+    "crypto-js": "^4.2.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.0",
+    "tsx": "^4.19.0",
+    "@types/node": "^22.0.0",
+    "@types/express": "^5.0.0",
+    "@types/crypto-js": "^4.2.0",
+    "concurrently": "^9.0.0",
+    "hardhat": "^2.22.0",
+    "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+    "@openzeppelin/contracts": "^5.0.0"
+  }
+}
