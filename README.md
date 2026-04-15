@@ -34,7 +34,7 @@ Bot:  💬 Got it, checking that paywall for you!
 
 ## 🏗️ Architecture
 
-![ZeroWaste Protocol Architecture](docs/architecture.png)
+![ZeroWaste Protocol Architecture](docs/architecture.svg)
 
 ### System Layers
 
