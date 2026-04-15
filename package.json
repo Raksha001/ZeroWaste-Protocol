@@ -10,7 +10,8 @@
     "dev": "concurrently \"npm run start:merchant\" \"npm run start:bot\"",
     "test": "tsx src/test/runMockFlow.ts",
     "compile": "npx hardhat compile",
-    "deploy": "npx hardhat run scripts/deploy.ts --network xlayer"
+    "deploy": "npx hardhat run scripts/deploy.ts --network xlayer",
+    "postinstall": "bash scripts/install-onchainos.sh"
   },
   "keywords": [
     "x402",
