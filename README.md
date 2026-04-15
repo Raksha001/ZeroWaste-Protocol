@@ -46,58 +46,7 @@ You tap ✅ →
 
 ## 🏗️ Architecture Overview
 
-```mermaid
-graph TB
-    subgraph UI["🧑‍💻 User Interface"]
-        TG["Telegram Bot<br/><i>/start · /dust · /setdust · /history · paste URL</i>"]
-    end
-
-    subgraph AI["🧠 AI Intent Engine"]
-        NLP["Groq LLaMA 3.3 70B<br/><i>IntentParser.ts</i>"]
-    end
-
-    subgraph CORE["⚙️ Core Services — OKX Onchain OS Skills"]
-        direction LR
-        WS["📊 WalletScanner<br/><i>okx-wallet-portfolio</i>"]
-        TX["🛡️ TxSimulator<br/><i>okx-security</i>"]
-        TE["💲 TokenEnricher<br/><i>okx-dex-token</i>"]
-        SR["🔄 SwapRouter<br/><i>okx-dex-swap</i>"]
-    end
-
-    subgraph EXEC["🚀 Execution Layer"]
-        direction LR
-        AW["🔐 AgenticWallet<br/><i>okx-agentic-wallet<br/>onchainos CLI</i>"]
-        PV["📡 PaymentVerifier<br/><i>okx-onchain-gateway</i>"]
-        AL["📋 AuditLog<br/><i>okx-audit-log</i>"]
-        X4["💳 x402 Handler<br/><i>okx-x402-payment</i>"]
-    end
-
-    subgraph CHAIN["⛓️ X Layer Mainnet · Chain ID: 196"]
-        DEX["OKX DEX Aggregator<br/><i>500+ liquidity sources</i>"]
-        SC["DustSweeperMulticall.sol<br/><i>Atomic fallback contract</i>"]
-        MERCH["x402 Merchant<br/><i>Receives USDT payment</i>"]
-    end
-
-    TG --> NLP
-    NLP --> X4
-    X4 --> WS
-    WS --> TX
-    TX --> TE
-    TE --> SR
-    SR --> AW
-    AW --> DEX
-    AW --> SC
-    AW --> MERCH
-    PV -.->|"tracks tx status"| DEX
-    PV -.->|"confirms payment"| MERCH
-    AL -.->|"queries history"| CHAIN
-
-    style UI fill:#1a1a2e,stroke:#58a6ff,color:#e6edf3
-    style AI fill:#2a1b41,stroke:#8957e5,color:#e6edf3
-    style CORE fill:#0f2a1b,stroke:#238636,color:#e6edf3
-    style EXEC fill:#1a2332,stroke:#1f6feb,color:#e6edf3
-    style CHAIN fill:#2a1f0f,stroke:#e36a00,color:#e6edf3
-```
+![ZeroWaste Protocol Architecture](architecture.png)
 
 ### How the Layers Connect
 
