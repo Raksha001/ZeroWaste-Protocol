@@ -60,7 +60,7 @@ app.get("/premium-article", (req, res) => {
       {
         scheme: "exact",
         network: "xlayer-mainnet",
-        maxAmountRequired: "100000",          // 0.10 USDT (6 decimals)
+        maxAmountRequired: "120000",          // 0.12 USDT (6 decimals)
         resource: `http://localhost:${PORT}/premium-article`,
         description: "Premium article access — The Future of Agentic Payments",
         mimeType: "application/json",
@@ -70,7 +70,7 @@ app.get("/premium-article", (req, res) => {
         extra: {
           name: "USDT",
           decimals: 6,
-          priceUsd: "0.10",
+          priceUsd: "0.12",
         },
       },
     ],

@@ -16,8 +16,8 @@ export class AgenticWallet {
   ): Promise<string> {
     const chainId = networkConfig.chainId.toString();
     
-    // Ensure onchainos CLI is accessible
-    const onchainosPath = process.env.ONCHAINOS_PATH || "~/.local/bin/onchainos";
+    // Ensure onchainos CLI is accessible (tilde not expanded by execAsync — use HOME)
+    const onchainosPath = process.env.ONCHAINOS_PATH || `${process.env.HOME}/.local/bin/onchainos`;
 
     // Build the CLI command
     // --force is required to skip interactive confirmation
@@ -62,8 +62,7 @@ export class AgenticWallet {
    */
   static async sendNative(to: string, amountRaw: string): Promise<string> {
     const chainId = networkConfig.chainId.toString();
-    const onchainosPath = process.env.ONCHAINOS_PATH || "~/.local/bin/onchainos";
-    
+    const onchainosPath = process.env.ONCHAINOS_PATH || `${process.env.HOME}/.local/bin/onchainos`;
     const cmd = `${onchainosPath} wallet send --recipient ${to} --chain ${chainId} --amt ${amountRaw} --force`;
     console.log(`[AgenticWallet] Executing: ${cmd}`);
 
