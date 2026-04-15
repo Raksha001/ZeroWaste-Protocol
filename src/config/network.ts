@@ -36,6 +36,11 @@ export const networkConfig = {
     ? "0x3fd506b2e2b0b98b7b4d08b49d6af2b49c4e099"   // Test USDT on X Layer Testnet (placeholder — verify on explorer)
     : "0x1E4a5963aBFD975d8c9021ce480b42188849D41d",  // USDT on X Layer Mainnet
 
+  dustSweeperContract: process.env.DUST_SWEEPER_CONTRACT || "",
+
+  // OKX DEX Aggregator router on X Layer (consistent across token pairs)
+  okxDexRouter: "0xD1b8997AaC08c619d40Be2e4284c9C72cAB33954",
+
   explorerUrl: isTestnet
     ? "https://www.okx.com/web3/explorer/xlayer-test"
     : "https://www.okx.com/web3/explorer/xlayer",

@@ -56,21 +56,30 @@ export class SwapRouter {
 
   /**
    * Get swap routes for multiple dust tokens concurrently.
+   * When routeViaContract=true, routes are generated for the DustSweeper contract
+   * as the initiator (msg.sender) so the contract can execute the swaps atomically.
    */
   static async getSwapRoutes(
     dustTokens: { token: TokenAsset; amountRaw?: string }[],
     userAddress: string,
-    outputToken: string = USDT_ADDRESS
+    outputToken: string = USDT_ADDRESS,
+    routeViaContract: boolean = false
   ): Promise<{ routes: SwapRoute[]; failures: { symbol: string; error: string }[] }> {
     console.log(`[SwapRouter] Computing ${dustTokens.length} swap routes in parallel...`);
 
     const routes: SwapRoute[] = [];
     const failures: { symbol: string; error: string }[] = [];
 
+    // When routing via contract, the contract is msg.sender on the DEX — use its address
+    const { networkConfig } = await import("../config/network");
+    const effectiveAddress = routeViaContract
+      ? networkConfig.dustSweeperContract
+      : userAddress;
+
     await Promise.all(
       dustTokens.map(async ({ token, amountRaw }) => {
         try {
-          const route = await SwapRouter.getSwapRoute(token, userAddress, outputToken, amountRaw);
+          const route = await SwapRouter.getSwapRoute(token, effectiveAddress, outputToken, amountRaw);
           routes.push(route);
         } catch (err: any) {
           console.error(`[SwapRouter] Failed to route ${token.symbol}:`, err.message);

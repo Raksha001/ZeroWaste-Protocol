@@ -13,6 +13,7 @@ contract DustSweeperMulticall {
     }
 
     /// @notice Executes a sequence of swaps (via off-chain resolved routes) and ensures the result meets x402 requirements.
+    /// @param userWallet The user's wallet address whose tokens are being swept (must have approved this contract)
     /// @param calls The array of multicall payloads (typically calls to Uniswap V3 / Universal Router)
     /// @param inputTokens The dust tokens we are swapping from (the user must have approved this contract to spend them)
     /// @param inputAmounts The exact amounts of the dust tokens to pull from the user
@@ -21,6 +22,7 @@ contract DustSweeperMulticall {
     /// @param requiredAmount The exact amount the merchant expects
     /// @param merchantAddress The ultimate recipient of the x402 checkout payment
     function executeSweepAndPay(
+        address userWallet,
         Call[] calldata calls,
         address[] calldata inputTokens,
         uint256[] calldata inputAmounts,
@@ -30,10 +32,10 @@ contract DustSweeperMulticall {
         address merchantAddress
     ) external {
         require(inputTokens.length == inputAmounts.length, "Mismatched inputs");
-        
-        // 1. Pull the dust tokens from the user and grant approval to the router
+
+        // 1. Pull the dust tokens from userWallet and grant approval to the router
         for (uint256 i = 0; i < inputTokens.length; i++) {
-            IERC20(inputTokens[i]).safeTransferFrom(msg.sender, address(this), inputAmounts[i]);
+            IERC20(inputTokens[i]).safeTransferFrom(userWallet, address(this), inputAmounts[i]);
             // Best practice with OpenZeppelin v5 for non-standard tokens (like USDT)
             IERC20(inputTokens[i]).forceApprove(router, type(uint256).max);
         }
@@ -73,14 +75,14 @@ contract DustSweeperMulticall {
         // 5. Refund excess output to the user
         if (amountGained > requiredAmount) {
             uint256 refund = amountGained - requiredAmount;
-            IERC20(targetToken).safeTransfer(msg.sender, refund);
+            IERC20(targetToken).safeTransfer(userWallet, refund);
         }
 
         // 6. Return unspent dust back to the user (e.g. if partial fills occurred)
         for (uint256 i = 0; i < inputTokens.length; i++) {
             uint256 remainingDust = IERC20(inputTokens[i]).balanceOf(address(this));
             if (remainingDust > 0) {
-                IERC20(inputTokens[i]).safeTransfer(msg.sender, remainingDust);
+                IERC20(inputTokens[i]).safeTransfer(userWallet, remainingDust);
             }
             // Revoke router approval 
             IERC20(inputTokens[i]).forceApprove(router, 0);

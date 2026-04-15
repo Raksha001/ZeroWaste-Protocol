@@ -59,7 +59,7 @@ async function runMockFlow() {
 
     // ——— Step 4: Route swaps ———
     console.log("4️⃣  Computing swap routes via OKX DEX Aggregator...");
-    const routes = await SwapRouter.getSwapRoutes(basket.selected, USER_WALLET, paymentReq.asset);
+    const { routes } = await SwapRouter.getSwapRoutes(basket.selected.map(t => ({ token: t })), USER_WALLET, paymentReq.asset);
     console.log(`   ✅ ${routes.length} routes computed:\n`);
 
     let totalOutput = 0;

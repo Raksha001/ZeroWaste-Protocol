@@ -128,10 +128,41 @@ app.get("/api-access", (req, res) => {
   });
 });
 
+// ——— Premium Product 3: Breaking News (two-token sweep demo) ———
+app.get("/premium-news", (req, res) => {
+  const receipt = req.query.receipt as string | undefined;
+
+  if (receipt && paidReceipts.has(receipt)) {
+    res.status(200).json({
+      title: "Breaking: Agentic AI Pays for Its Own Content",
+      body: "In a world-first, an AI agent autonomously swept dust tokens to pay for this article...",
+      message: "Full article unlocked via multi-token dust sweep!",
+    });
+    return;
+  }
+
+  res.status(402).json({
+    x402Version: 1,
+    accepts: [
+      {
+        scheme: "exact",
+        network: "xlayer-mainnet",
+        maxAmountRequired: "300000",          // 0.30 USDT (6 decimals)
+        resource: `http://localhost:${PORT}/premium-news`,
+        description: "Breaking news: Agentic AI pays its own way",
+        payToAddress: MERCHANT_WALLET,
+        asset: "0x1E4a5963aBFD975d8c9021ce480b42188849D41d",
+        extra: { name: "USDT", decimals: 6, priceUsd: "0.30" },
+      },
+    ],
+  });
+});
+
 // Start server
 app.listen(PORT, () => {
   console.log(`\n🏪 Mock Merchant Server running on http://localhost:${PORT}`);
-  console.log(`   Paywall:  GET  http://localhost:${PORT}/premium-article`);
-  console.log(`   API:      GET  http://localhost:${PORT}/api-access`);
+  console.log(`   Paywall:  GET  http://localhost:${PORT}/premium-article  ($0.12)`);
+  console.log(`   News:     GET  http://localhost:${PORT}/premium-news      ($0.30 — two-token demo)`);
+  console.log(`   API:      GET  http://localhost:${PORT}/api-access        ($2.00)`);
   console.log(`   Merchant wallet: ${MERCHANT_WALLET}\n`);
 });
