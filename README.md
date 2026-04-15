@@ -159,13 +159,18 @@ sequenceDiagram
     Bot-->>User: 🎉 Content unlocked!
 ```
 
-### Three Payment Scenarios
+### Intelligent Checkout Scenarios
 
-| Scenario | When It Triggers | What Happens |
+The ZeroWaste Protocol agent handles various real-world payment edge cases autonomously:
+
+| Scenario | Logic & Trigger | User Benefit |
 |---|---|---|
-| **Direct Pay** | Agent wallet already has enough USDT | Skip dust sweep, transfer USDT directly to merchant |
-| **Single-Token Sweep** | One dust token alone covers the required amount | Approve → Swap that token → USDT → Pay merchant |
-| **Multi-Token Basket** | No single token is sufficient | Select optimal combination, route swaps in parallel, then pay |
+| **⚡ Direct Pay** | **Agent wallet already has sufficient stablecoin.** Skip DEX swaps entirely and execute a direct ERC20 transfer. | Zero swap fees, instant confirmation. |
+| **📉 Partial Swap** | **A single dust token is larger than the required amount.** Bot calculates exact swap amount (including 5% slippage buffer) and leaves the remainder in your wallet. | "Dust conservation" — only spend what is necessary. |
+| **🛡️ Security Shield** | **OKX Security flags a token as `isRiskToken: true`.** Agent automatically excludes it from the sweep basket before liquidation. | Protects you from interacting with honeypots or malicious contracts. |
+| **🩹 Self-Healing Routing** | **DEX Aggregator rejects a tiny token balance.** The bot "blocklists" that token for the session, selects a new basket, and re-computes a safe route. | Resilience: the payment succeeds even if individual tokens fail to swap. |
+| **🛒 Multi-token Sweep** | **No single token covers the price.** Agent aggregates multiple dust tokens, routes them in parallel via OKX DEX V6, and combines the output for the merchant. | Unlocks liquidity from tiny, fragmented balances. |
+| **⚓ Multicall Fallback** | **Complex multi-swap operations.** Uses `DustSweeperMulticall.sol` to verify that the final USDT output meets the merchant's price before releasing user funds. | Atomic safety — the operation reverts if the output is insufficient. |
 
 ### Key Design Decisions
 
