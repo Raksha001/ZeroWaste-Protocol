@@ -186,9 +186,10 @@ The ZeroWaste Protocol agent handles various real-world payment edge cases auton
 
 ## 👥 Team Members
 
-| Name | Role | GitHub |
-|---|---|---|
-| Sharwin | Full-stack development & architecture | [@Raksha001](https://github.com/Raksha001) |
+| Name  | GitHub |
+|---|---|
+| Sharwin | [@xaviersharwin10](https://github.com/xaviersharwin10) |
+| Sharwin | [@Raksha001](https://github.com/Raksha001) |
 
 ---
 
