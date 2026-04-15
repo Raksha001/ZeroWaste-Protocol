@@ -19,7 +19,7 @@ const paidReceipts = new Set<string>();
 
 // Health check
 app.get("/health", (_req, res) => {
-  res.json({ status: "ok", service: "smart-sweep-merchant" });
+  res.json({ status: "ok", service: "zerowaste-merchant" });
 });
 
 /**
@@ -36,7 +36,7 @@ app.get("/premium-article", (req, res) => {
     res.status(200).json({
       title: "🔓 The Future of Agentic Payments on X Layer",
       content: `
-        This is the premium article content that was unlocked via Smart-Sweep Checkout!
+        This is the premium article content that was unlocked via ZeroWaste Protocol!
         
         The x402 protocol enables machine-to-machine payments at the HTTP level. 
         Instead of API keys and subscriptions, agents pay per-request using 

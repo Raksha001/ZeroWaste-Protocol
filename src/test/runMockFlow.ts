@@ -13,7 +13,7 @@ dotenv.config();
  */
 async function runMockFlow() {
   console.log("═══════════════════════════════════════════════");
-  console.log("  🧪 Smart-Sweep Checkout — Mock Flow Test");
+  console.log("  🧪 ZeroWaste Protocol — Mock Flow Test");
   console.log("═══════════════════════════════════════════════\n");
 
   const MERCHANT_URL = `http://localhost:${process.env.MERCHANT_PORT || "3001"}/premium-article`;

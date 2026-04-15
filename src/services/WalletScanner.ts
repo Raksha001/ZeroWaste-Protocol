@@ -27,12 +27,16 @@ export class WalletScanner {
   // X Layer chain index in OKX system
   private static readonly XLAYER_CHAIN_INDEX = "196";
   // Dust threshold in USD
-  private static readonly DUST_THRESHOLD = 50.0;
+  private static readonly DEFAULT_DUST_THRESHOLD = 50.0;
 
   /**
    * Get all dust tokens (< $50 value) from the user's X Layer wallet.
    */
-  static async getDustTokens(walletAddress: string, excludeToken?: string): Promise<TokenAsset[]> {
+  static async getDustTokens(
+    walletAddress: string,
+    excludeToken?: string,
+    dustThresholdUsd: number = WalletScanner.DEFAULT_DUST_THRESHOLD
+  ): Promise<TokenAsset[]> {
     const isMock = process.env.MOCK_MODE === "true";
 
     if (isMock) {
@@ -40,16 +44,20 @@ export class WalletScanner {
     }
 
     if (networkConfig.isTestnet) {
-      return WalletScanner.getTestnetDustTokens(walletAddress, excludeToken);
+      return WalletScanner.getTestnetDustTokens(walletAddress, excludeToken, dustThresholdUsd);
     }
 
-    return WalletScanner.getLiveDustTokens(walletAddress, excludeToken);
+    return WalletScanner.getLiveDustTokens(walletAddress, excludeToken, dustThresholdUsd);
   }
 
   /**
    * Live Testnet mode: Ethers.js scanning since OKX Portfolio doesn't index testnets.
    */
-  private static async getTestnetDustTokens(walletAddress: string, excludeToken?: string): Promise<TokenAsset[]> {
+  private static async getTestnetDustTokens(
+    walletAddress: string,
+    excludeToken?: string,
+    dustThresholdUsd: number = WalletScanner.DEFAULT_DUST_THRESHOLD
+  ): Promise<TokenAsset[]> {
     console.log(`[WalletScanner] Scanning Testnet dust via Ethers RPC for ${walletAddress}...`);
     
     const provider = new ethers.JsonRpcProvider(networkConfig.rpcUrl);
@@ -74,7 +82,7 @@ export class WalletScanner {
           const floatBalance = parseFloat(ethers.formatUnits(rawBalance, token.decimals));
           const usdValue = floatBalance * 1.0; 
 
-          if (usdValue < WalletScanner.DUST_THRESHOLD) {
+          if (usdValue < dustThresholdUsd) {
             foundDust.push({
               chainIndex: networkConfig.chainId.toString(),
               tokenAddress: token.address,
@@ -101,7 +109,11 @@ export class WalletScanner {
   /**
    * Live mode: Query OKX Wallet Portfolio API.
    */
-  private static async getLiveDustTokens(walletAddress: string, excludeToken?: string): Promise<TokenAsset[]> {
+  private static async getLiveDustTokens(
+    walletAddress: string,
+    excludeToken?: string,
+    dustThresholdUsd: number = WalletScanner.DEFAULT_DUST_THRESHOLD
+  ): Promise<TokenAsset[]> {
     console.log(`[WalletScanner] Scanning ${walletAddress} on X Layer via Onchain OS...`);
 
     try {
@@ -134,7 +146,7 @@ export class WalletScanner {
           // Skip pure native gas token (OKB) and zero-balance tokens
           if ((token.tokenType === "1" && (!token.tokenAddress || token.symbol === "OKB")) || balance === 0) continue;
 
-          if (usdValue > 0 && usdValue < WalletScanner.DUST_THRESHOLD) {
+          if (usdValue > 0 && usdValue < dustThresholdUsd) {
             allTokens.push({
               chainIndex: WalletScanner.XLAYER_CHAIN_INDEX,
               tokenAddress: token.tokenContractAddress || token.tokenAddress,

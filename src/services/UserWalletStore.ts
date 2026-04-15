@@ -5,10 +5,13 @@ import * as path from "path";
 
 const execAsync = promisify(exec);
 
+export const DEFAULT_DUST_THRESHOLD_USD = 50.0;
+
 export interface UserWallet {
   accountId: string;
   address: string;
   createdAt: string;
+  dustThresholdUsd?: number; // per-user preference, defaults to DEFAULT_DUST_THRESHOLD_USD
 }
 
 // Persisted to .data/user-wallets.json so wallets survive bot restarts
@@ -87,5 +90,27 @@ export class UserWalletStore {
       `[UserWalletStore] Created wallet for user ${telegramId}: ${wallet.address} (accountId: ${wallet.accountId})`
     );
     return wallet;
+  }
+
+  /**
+   * Updates the dust threshold preference for a user (persisted to disk).
+   * @param thresholdUsd - Any value between 0.5 and 500 USD
+   */
+  static setDustThreshold(telegramId: number, thresholdUsd: number): UserWallet {
+    const store = loadStore();
+    const wallet = store[telegramId.toString()];
+    if (!wallet) throw new Error("No wallet found for user");
+    wallet.dustThresholdUsd = thresholdUsd;
+    saveStore(store);
+    console.log(`[UserWalletStore] Dust threshold updated for user ${telegramId}: $${thresholdUsd}`);
+    return wallet;
+  }
+
+  /**
+   * Returns the effective dust threshold for a user (falls back to system default).
+   */
+  static getDustThreshold(telegramId: number): number {
+    const wallet = UserWalletStore.get(telegramId);
+    return wallet?.dustThresholdUsd ?? DEFAULT_DUST_THRESHOLD_USD;
   }
 }

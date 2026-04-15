@@ -6,8 +6,12 @@ import { WalletScanner, TokenAsset } from "../services/WalletScanner";
 import { SwapRouter, SwapRoute } from "../services/SwapRouter";
 import { PaymentVerifier } from "../services/PaymentVerifier";
 import { AgenticWallet } from "../services/AgenticWallet";
-import { UserWalletStore, UserWallet } from "../services/UserWalletStore";
+import { UserWalletStore, UserWallet, DEFAULT_DUST_THRESHOLD_USD } from "../services/UserWalletStore";
 import { networkConfig } from "../config/network";
+import { IntentParser } from "../services/IntentParser";
+import { TokenEnricher } from "../services/TokenEnricher";
+import { TxSimulator } from "../services/TxSimulator";
+import { AuditLog } from "../services/AuditLog";
 
 dotenv.config();
 
@@ -80,7 +84,7 @@ bot.start(async (ctx) => {
     : "X Layer Mainnet 🔴";
 
   await ctx.reply(
-    `🧹 *Smart-Sweep Checkout*\n\n` +
+    `🧹 *ZeroWaste Protocol*\n\n` +
       `I pay x402 paywalls using your wallet's *dust tokens* on ${netLabel}.\n\n` +
       `Your worthless token scraps → instant payment.\n\n` +
       `_Setting up your agent wallet..._`,
@@ -92,7 +96,7 @@ bot.start(async (ctx) => {
   if (!wallet) return;
 
   await ctx.reply(
-    `✅ *Your Smart-Sweep Agent Wallet is ready!*\n\n` +
+    `✅ *Your ZeroWaste Protocol Agent Wallet is ready!*\n\n` +
       `📬 *Deposit address:*\n\`${wallet.address}\`\n\n` +
       `*How to use:*\n` +
       `1️⃣ Send your dust tokens to the address above\n` +
@@ -130,10 +134,11 @@ bot.command("dust", async (ctx) => {
     if (!wallet) return;
   }
 
-  await ctx.reply("🔍 Scanning your agent wallet for dust tokens...");
+  const threshold = UserWalletStore.getDustThreshold(ctx.from.id);
+  await ctx.reply(`🔍 Scanning your agent wallet for dust tokens (threshold: $${threshold})...`);
 
   try {
-    const dustTokens = await WalletScanner.getDustTokens(wallet.address);
+    const dustTokens = await WalletScanner.getDustTokens(wallet.address, undefined, threshold);
 
     if (dustTokens.length === 0) {
       await ctx.reply(
@@ -150,7 +155,9 @@ bot.command("dust", async (ctx) => {
       msg += `• *${token.symbol}*: $${token.usdValue.toFixed(2)}\n`;
       total += token.usdValue;
     }
-    msg += `\n💰 *Total:* $${total.toFixed(2)}\n\n_Paste a paywalled URL to spend this dust!_`;
+    msg += `\n💰 *Total:* $${total.toFixed(2)}`;
+    msg += `\n_Dust threshold: $${threshold} — change with /setdust_`;
+    msg += `\n\n_Paste a paywalled URL to spend this dust!_`;
 
     await ctx.reply(msg, { parse_mode: "Markdown" });
   } catch (error: any) {
@@ -171,15 +178,132 @@ bot.command("setwallet", async (ctx) => {
 });
 
 // ——————————————————————————————————
-// URL Handler — Detects x402 Paywalls
+// /setdust — Per-user dust threshold configuration
+// ——————————————————————————————————
+bot.command("setdust", async (ctx) => {
+  const wallet = UserWalletStore.get(ctx.from.id);
+  if (!wallet) {
+    await ctx.reply("❌ No wallet yet. Send /start first.");
+    return;
+  }
+
+  // Parse the argument: /setdust 5  or  /setdust 2.5
+  const args = ctx.message.text.split(/\s+/).slice(1);
+  if (args.length === 0) {
+    const current = UserWalletStore.getDustThreshold(ctx.from.id);
+    await ctx.reply(
+      `⚙️ *Dust Threshold Setting*\n\n` +
+        `Current: *$${current}* per token\n` +
+        `Default: *$${DEFAULT_DUST_THRESHOLD_USD}*\n\n` +
+        `Tokens *below* this value are swept as dust when paying.\n\n` +
+        `To change: /setdust \`<amount>\`\n` +
+        `Examples: /setdust 2  /setdust 10  /setdust 50`,
+      { parse_mode: "Markdown" }
+    );
+    return;
+  }
+
+  const value = parseFloat(args[0]);
+  if (isNaN(value) || value < 0.5 || value > 500) {
+    await ctx.reply("❌ Please enter a value between *$0.5* and *$500*.\nExample: /setdust 5", { parse_mode: "Markdown" });
+    return;
+  }
+
+  UserWalletStore.setDustThreshold(ctx.from.id, value);
+  await ctx.reply(
+    `✅ Dust threshold updated to *$${value}*!\n\n` +
+      `Tokens worth less than $${value} will now be swept automatically.\n` +
+      `Use /dust to see what qualifies.`,
+    { parse_mode: "Markdown" }
+  );
+});
+
+// ——————————————————————————————————
+// /history — On-chain transaction history (okx-audit-log skill)
+// ——————————————————————————————————
+bot.command("history", async (ctx) => {
+  const wallet = UserWalletStore.get(ctx.from.id);
+  if (!wallet) {
+    await ctx.reply("❌ No wallet yet. Send /start first.");
+    return;
+  }
+
+  await ctx.reply("📋 Fetching your on-chain sweep history via OKX Audit Log...");
+
+  try {
+    const records = await AuditLog.getTransactions(wallet.address, 10);
+    const msg = AuditLog.formatForTelegram(records, wallet.address);
+    await ctx.reply(msg, { parse_mode: "Markdown", link_preview_options: { is_disabled: true } });
+  } catch (err: any) {
+    await ctx.reply(`❌ Failed to fetch history: ${err.message}`);
+  }
+});
+
+// ——————————————————————————————————
+// URL Handler — NLP Intent Parser + x402 Paywall Detection
 // ——————————————————————————————————
 bot.on("text", async (ctx) => {
   const text = ctx.message.text;
   if (text.startsWith("/")) return;
 
-  const urlMatch = text.match(/https?:\/\/[^\s]+/);
-  if (!urlMatch) return;
-  const url = urlMatch[0];
+  // ——— Phase 0: Parse natural language intent via Groq LLM ———
+  const intent = await IntentParser.parse(text);
+
+  // Route non-URL intents to their handlers
+  if (intent.type === "check_dust") {
+    ctx.message.text = "/dust"; // reuse /dust handler logic
+    if (intent.friendlyAck) await ctx.reply(`💬 ${intent.friendlyAck}`);
+    const wallet = UserWalletStore.get(ctx.from.id);
+    if (!wallet) { await ctx.reply("Send /start first to set up your agent wallet."); return; }
+    await ctx.reply("🔍 Scanning your agent wallet for dust tokens...");
+    try {
+      const dustTokens = await WalletScanner.getDustTokens(wallet.address, undefined, UserWalletStore.getDustThreshold(ctx.from.id));
+      if (dustTokens.length === 0) {
+        await ctx.reply(`🧹 No dust tokens found in your agent wallet.\n\nSend tokens to:\n\`${wallet.address}\``, { parse_mode: "Markdown" });
+        return;
+      }
+      let msg = `🗑️ *Dust in your agent wallet:*\n\n`;
+      let total = 0;
+      for (const token of dustTokens) { msg += `• *${token.symbol}*: $${token.usdValue.toFixed(2)}\n`; total += token.usdValue; }
+      msg += `\n💰 *Total:* $${total.toFixed(2)}\n\n_Paste a paywalled URL to spend this dust!_`;
+      await ctx.reply(msg, { parse_mode: "Markdown" });
+    } catch (e: any) { await ctx.reply(`❌ Error scanning: ${e.message}`); }
+    return;
+  }
+
+  if (intent.type === "check_wallet") {
+    if (intent.friendlyAck) await ctx.reply(`💬 ${intent.friendlyAck}`);
+    ctx.message.text = "/wallet";
+    const wallet = UserWalletStore.get(ctx.from.id);
+    if (wallet) {
+      const explorerUrl = `${networkConfig.explorerUrl}/address/${wallet.address}`;
+      await ctx.reply(`💰 *Your Agent Wallet*\n\n📬 Address: \`${wallet.address}\`\n🔗 [View on explorer](${explorerUrl})`, { parse_mode: "Markdown", link_preview_options: { is_disabled: true } });
+    } else {
+      await ctx.reply("❌ No wallet yet. Send /start to set one up.");
+    }
+    return;
+  }
+
+  if (intent.type === "help") {
+    await ctx.reply(
+      `🧹 *ZeroWaste Protocol*\n\nI convert your wallet's dust tokens into USDT payments for paywalled content.\n\n*Commands:* /start · /wallet · /dust · /help\n\n*To pay:* Just paste a paywalled URL and I'll handle the rest!`,
+      { parse_mode: "Markdown" }
+    );
+    return;
+  }
+
+  // If intent is pay_url, use the LLM-extracted URL; otherwise fall back to regex
+  let url: string;
+  if (intent.type === "pay_url" && intent.url) {
+    url = intent.url;
+    if (intent.friendlyAck) {
+      await ctx.reply(`💬 ${intent.friendlyAck}`);
+    }
+  } else {
+    const urlMatch = text.match(/https?:\/\/[^\s]+/);
+    if (!urlMatch) return;
+    url = urlMatch[0];
+  }
 
   // Ensure user has a wallet
   let userWallet = UserWalletStore.get(ctx.from.id);
@@ -241,8 +365,18 @@ bot.on("text", async (ctx) => {
       { parse_mode: "Markdown" }
     );
 
-    // ——— Phase 2: Scan Dust (agent wallet, not external wallet) ———
-    const dustTokens = await WalletScanner.getDustTokens(userWallet.address);
+    // ——— Phase 2: Scan Dust + Security Filter + Live Price Enrichment ———
+    let dustTokens = await WalletScanner.getDustTokens(userWallet.address, undefined, UserWalletStore.getDustThreshold(ctx.from.id));
+
+    // okx-security: filter out risk tokens before attempting any swaps
+    const { safe: safeTokens, risky } = TxSimulator.filterRiskTokens(dustTokens);
+    if (risky.length > 0) {
+      console.log(`[Bot] Filtered ${risky.length} risk token(s): ${risky.map(r => r.token.symbol).join(", ")}`);
+    }
+    dustTokens = safeTokens;
+
+    // okx-dex-token: enrich prices with live DEX quotes for accuracy
+    dustTokens = await TokenEnricher.enrichWithLivePrices(dustTokens, targetToken);
 
     if (dustTokens.length === 0) {
       await ctx.reply(
@@ -553,7 +687,7 @@ bot.action("approve_payment", async (ctx) => {
         session.targetToken,
         transferData
       );
-      await verifier.waitForConfirmation(txHash, 60000);
+      await verifier.waitForConfirmationViaGateway(txHash, 60000);
 
       try {
         await axios.post(
@@ -619,7 +753,7 @@ bot.action("approve_payment", async (ctx) => {
             route.approveData.to,
             route.approveData.data
           );
-          await verifier.waitForConfirmation(approveTxHash, 30000);
+          await verifier.waitForConfirmationViaGateway(approveTxHash, 30000);
           console.log(`[Bot] ✅ ${route.inputToken.symbol} approved`);
         }
 
@@ -631,7 +765,7 @@ bot.action("approve_payment", async (ctx) => {
           route.txData.data,
           route.txData.value !== "0" ? route.txData.value : "0"
         );
-        await verifier.waitForConfirmation(swapTxHash, 60000);
+        await verifier.waitForConfirmationViaGateway(swapTxHash, 60000);
         swapTxHashes.push(swapTxHash);
         console.log(`[Bot] ✅ Swap tx: ${swapTxHash}`);
       }
@@ -656,7 +790,7 @@ bot.action("approve_payment", async (ctx) => {
         session.targetToken,
         transferData
       );
-      await verifier.waitForConfirmation(payTxHash, 60000);
+      await verifier.waitForConfirmationViaGateway(payTxHash, 60000);
       console.log(`[Bot] ✅ Merchant paid: ${payTxHash}`);
 
       try {
@@ -700,7 +834,7 @@ bot.action("cancel_payment", async (ctx) => {
 
 bot.help((ctx) => {
   ctx.reply(
-    `🧹 *Smart-Sweep Checkout — Commands*\n\n` +
+    `🧹 *ZeroWaste Protocol — Commands*\n\n` +
       `/start — Set up your agent wallet\n` +
       `/wallet — Show your agent wallet address (deposit address)\n` +
       `/dust — View dust tokens in your agent wallet\n` +
@@ -719,7 +853,7 @@ bot.help((ctx) => {
 // Launch Bot
 // ——————————————————————————————————
 bot.launch().then(() => {
-  console.log("\n🤖 Smart-Sweep Checkout bot is running!");
+  console.log("\n🤖 ZeroWaste Protocol bot is running!");
   console.log("   Send /start in Telegram to begin.\n");
 });
 

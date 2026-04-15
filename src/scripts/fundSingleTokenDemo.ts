@@ -90,7 +90,7 @@ async function getSwapData(fromAddr: string, toAddr: string, amount: string, wal
 function sleep(ms: number) { return new Promise(r => setTimeout(r, ms)); }
 
 // ─── Balance printer ─────────────────────────────────────────────────────────
-async function printBalances(label: string, addr: string, provider: ethers.Provider) {
+async function printBalances(label: string, addr: string, provider: any) {
   const tokens = [
     { symbol: "USDT",   addr: USDT_ADDR,   dec: 6  },
     { symbol: "USDC",   addr: USDC_ADDR,   dec: 6  },
@@ -121,7 +121,7 @@ async function main() {
   const [deployer] = await ethers.getSigners();
   const provider = ethers.provider;
 
-  console.log("\n🧹 Smart-Sweep — Single Token Demo Funder");
+  console.log("\n🧹 ZeroWaste Protocol — Single Token Demo Funder");
   console.log("══════════════════════════════════════════\n");
   console.log(`Deployer (has private key): ${deployer.address}`);
   console.log(`Agent wallet (TEE target):  ${AGENT_WALLET}`);

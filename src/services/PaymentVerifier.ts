@@ -1,8 +1,12 @@
 import { ethers } from "ethers";
 import dotenv from "dotenv";
 import { networkConfig } from "../config/network";
+import { okxApi } from "./OkxApiClient";
 
 dotenv.config();
+
+// Polling interval for OKX gateway tracking
+const GATEWAY_POLL_INTERVAL_MS = 3000;
 
 /**
  * Verifies payment transactions on X Layer.
@@ -90,6 +94,60 @@ export class PaymentVerifier {
       console.error("[PaymentVerifier] Verification error:", error.message);
       return false;
     }
+  }
+
+  /**
+   * Track a transaction via OKX Onchain Gateway API (okx-onchain-gateway skill).
+   * Polls until the tx is confirmed or timeout is reached.
+   *
+   * OKX endpoint: GET /api/v5/wallet/post-transaction/transaction-detail-by-txhash
+   */
+  async waitForConfirmationViaGateway(
+    txHash: string,
+    maxWaitMs: number = 90000
+  ): Promise<{ success: boolean; blockNumber?: number; error?: string }> {
+    console.log(`[PaymentVerifier:Gateway] Tracking tx ${txHash} via OKX Onchain Gateway...`);
+    const deadline = Date.now() + maxWaitMs;
+
+    while (Date.now() < deadline) {
+      try {
+        const response = await okxApi.get(
+          "/api/v5/wallet/post-transaction/transaction-detail-by-txhash",
+          {
+            chainIndex: networkConfig.chainId.toString(),
+            txHash: txHash,    // OKX API uses camelCase
+          }
+        );
+
+        if (response.code === "0" && response.data?.[0]) {
+          const detail = response.data[0];
+          const status = detail.txStatus || detail.status;
+          const blockNum = detail.blockNumber || detail.height;
+
+          if (status === "success" || status === "1" || status === 1) {
+            console.log(`[PaymentVerifier:Gateway] ✅ Confirmed via OKX Gateway — block ${blockNum}`);
+            return { success: true, blockNumber: parseInt(blockNum) };
+          }
+
+          if (status === "failed" || status === "0" || status === 0) {
+            console.log(`[PaymentVerifier:Gateway] ❌ Tx failed on-chain`);
+            return { success: false, error: "Transaction reverted on-chain" };
+          }
+
+          console.log(`[PaymentVerifier:Gateway] Status: ${status} — polling again...`);
+        }
+      } catch (err: any) {
+        // If gateway is down, fall back to ethers confirmation
+        console.warn(`[PaymentVerifier:Gateway] API error: ${err.message} — falling back to ethers`);
+        return this.waitForConfirmation(txHash, Math.max(deadline - Date.now(), 5000));
+      }
+
+      await new Promise(r => setTimeout(r, GATEWAY_POLL_INTERVAL_MS));
+    }
+
+    // Timeout — fall back to ethers as last resort
+    console.warn(`[PaymentVerifier:Gateway] Timeout — falling back to ethers confirmation`);
+    return this.waitForConfirmation(txHash, 15000);
   }
 
   /**
