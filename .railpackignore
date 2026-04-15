@@ -1,0 +1,8 @@
+/root/.local/state/mise
+.git
+node_modules
+.env
+.env.local
+dist
+build
+.data
