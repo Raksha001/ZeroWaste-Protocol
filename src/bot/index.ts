@@ -25,8 +25,8 @@ if (!BOT_TOKEN) {
   process.exit(1);
 }
 
-if (!process.env.AGENT_ACCOUNT_ID) {
-  console.error("❌ AGENT_ACCOUNT_ID is required in .env (the onchainos accountId for the default agent wallet)");
+if (!process.env.AGENT_ACCOUNT_ID && !process.env.AGENT_PRIVATE_KEY) {
+  console.error("❌ Either AGENT_ACCOUNT_ID (onchainos) or AGENT_PRIVATE_KEY (ethers) is required in .env");
   process.exit(1);
 }
 
@@ -36,7 +36,7 @@ const verifier = new PaymentVerifier();
 // Pending payment sessions (in-memory, cleared on bot restart)
 interface PaymentSession {
   userId: number;
-  accountId: string;         // onchainos accountId for this user
+  signingKey: string;        // privateKey (ethers mode) OR accountId (onchainos mode)
   walletAddress: string;     // the user's agent wallet address
   merchantUrl: string;
   priceUsd: string;
@@ -395,7 +395,7 @@ bot.on("text", async (ctx) => {
     if (targetTokenInWallet && targetTokenInWallet.usdValue >= parseFloat(priceUsd)) {
       const session: PaymentSession = {
         userId: ctx.from.id,
-        accountId: userWallet.accountId,
+        signingKey: userWallet.privateKey ?? userWallet.accountId,
         walletAddress: userWallet.address,
         merchantUrl: url,
         priceUsd,
@@ -563,7 +563,7 @@ bot.on("text", async (ctx) => {
 
     const session: PaymentSession = {
       userId: ctx.from.id,
-      accountId: userWallet.accountId,
+      signingKey: userWallet.privateKey ?? userWallet.accountId,
       walletAddress: userWallet.address,
       merchantUrl: url,
       priceUsd,
@@ -683,7 +683,7 @@ bot.action("approve_payment", async (ctx) => {
       ]);
 
       const txHash = await AgenticWallet.sendTransactionForUser(
-        session.accountId,
+        session.signingKey,
         session.targetToken,
         transferData
       );
@@ -749,7 +749,7 @@ bot.action("approve_payment", async (ctx) => {
         if (route.approveData) {
           console.log(`[Bot] Approving DEX router for ${route.inputToken.symbol}...`);
           const approveTxHash = await AgenticWallet.sendTransactionForUser(
-            session.accountId,
+            session.signingKey,
             route.approveData.to,
             route.approveData.data
           );
@@ -760,7 +760,7 @@ bot.action("approve_payment", async (ctx) => {
         // Execute the swap
         console.log(`[Bot] Executing swap ${route.inputToken.symbol} → USDT...`);
         const swapTxHash = await AgenticWallet.sendTransactionForUser(
-          session.accountId,
+          session.signingKey,
           route.txData.to,
           route.txData.data,
           route.txData.value !== "0" ? route.txData.value : "0"
@@ -786,7 +786,7 @@ bot.action("approve_payment", async (ctx) => {
         BigInt(session.priceRaw),
       ]);
       const payTxHash = await AgenticWallet.sendTransactionForUser(
-        session.accountId,
+        session.signingKey,
         session.targetToken,
         transferData
       );

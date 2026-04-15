@@ -5,6 +5,7 @@
   "main": "dist/bot/index.js",
   "scripts": {
     "build": "tsc",
+    "start": "tsx src/bot/index.ts",
     "start:bot": "tsx src/bot/index.ts",
     "start:merchant": "tsx src/merchant/server.ts",
     "dev": "concurrently \"npm run start:merchant\" \"npm run start:bot\"",
@@ -27,12 +28,14 @@
   "type": "commonjs",
   "dependencies": {
     "axios": "^1.7.0",
+    "concurrently": "^9.0.0",
     "crypto-js": "^4.2.0",
     "dotenv": "^16.4.0",
     "ethers": "^6.13.0",
     "express": "^4.21.0",
     "groq-sdk": "^1.1.2",
-    "telegraf": "^4.16.0"
+    "telegraf": "^4.16.0",
+    "tsx": "^4.19.0"
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-toolbox": "^5.0.0",
