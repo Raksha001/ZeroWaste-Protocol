@@ -15,7 +15,9 @@ export interface UserWallet {
 }
 
 // Persisted to .data/user-wallets.json so wallets survive bot restarts
-const DATA_FILE = path.join(process.cwd(), ".data", "user-wallets.json");
+// On Railway, we point this to /app/storage/data via USER_DATA_DIR
+const DATA_DIR = process.env.USER_DATA_DIR || path.join(process.cwd(), ".data");
+const DATA_FILE = path.join(DATA_DIR, "user-wallets.json");
 
 function loadStore(): Record<string, UserWallet> {
   try {
