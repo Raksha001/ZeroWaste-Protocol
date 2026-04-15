@@ -1,6 +1,6 @@
 # ZeroWaste Protocol 🧹
 
-> **Pay x402 paywalls with your wallet's trash.** An AI-powered Web3 payment agent that converts worthless "dust" tokens into stablecoin payments on X Layer — conversationally, autonomously, and with zero manual swaps.
+> **Turn wallet dust into payments.** An AI-powered Telegram agent that automatically liquidates small, idle token balances ("dust") on X Layer into USDT to pay x402 paywalls — conversationally, autonomously, and with zero manual swaps.
 
 [![X Layer Mainnet](https://img.shields.io/badge/X%20Layer-Mainnet%20(196)-orange)](https://www.okx.com/xlayer)
 [![OKX Onchain OS](https://img.shields.io/badge/OKX%20Onchain%20OS-8%20Skills-blue)](https://web3.okx.com/onchain-os)
@@ -9,179 +9,242 @@
 
 ---
 
-## 🎯 What It Does
+## 📖 Project Introduction
 
-You have $0.20 of WOKB, $1.50 of some token, and $0.80 of another sitting idle in your wallet — worthless individually for buying anything, but together covering a $2.00 paywall. **ZeroWaste Protocol eliminates that waste.**
+Every crypto wallet accumulates small token balances — $0.07 of WOKB, $0.02 of USDC, $1.50 of some random token. Individually worthless, collectively these "dust" tokens represent billions in idle value across Web3. **ZeroWaste Protocol turns that trash into treasure.**
 
-Just tell the bot what you want to pay for. In plain English. It handles everything else.
+### The Problem
+- Users accumulate tiny token balances that are too small to trade or use individually
+- x402 paywalls require specific stablecoin payments that users may not have ready
+- Manually swapping multiple small tokens is tedious, gas-inefficient, and often not worth the effort
+
+### The Solution
+A Telegram bot where users simply paste a paywalled URL (or ask in plain English), and the agent autonomously:
+1. Detects the x402 payment requirement
+2. Scans the user's agent wallet for all dust tokens
+3. Filters out risky tokens, enriches prices with live DEX quotes
+4. Selects the optimal dust basket and computes swap routes
+5. Executes approve → swap → pay in sequence
+6. Delivers the unlocked content — all in one interaction
 
 ```
-You:  "pay for this article: http://content.xyz/premium-story"
-Bot:  💬 Got it, checking that paywall for you!
-      🔗 Checking paywall at: http://content.xyz/premium-story
-      ⚠️ x402 Payment Required — $0.12 USDT
-      🔍 Scanning your dust...  2 safe tokens, $0.26 total
-      📊 WOKB live price: $0.2484 (DEX-validated)
-      💱 Proposed: Sweep 0.00145 WOKB → $0.12 USDT → pay merchant
+You:  "pay for this article: https://merchant.xyz/premium"
+Bot:  🔗 x402 Payment Required — $0.12 USDT to 0x2fBa...
+      🔍 Scanning dust... 2 safe tokens, $0.26 total
+      📊 WOKB live DEX price: $0.2484 (within 0.11% of portfolio)
+      💱 Sweep 0.00145 WOKB → $0.13 USDT → pay merchant
       [✅ Approve & Pay]  [❌ Cancel]
-  → User taps Approve
-      ✅ Swap confirmed (OKX Gateway — block 57495189)
-      ✅ Merchant paid (OKX Gateway — block 57495194)
-      🎉 Access unlocked! Here's your content...
+
+You tap ✅ →
+      ✅ WOKB approved (Gateway — block 57495184)
+      ✅ Swap confirmed (Gateway — block 57495189)
+      ✅ Merchant paid (Gateway — block 57495194)
+      🎉 Content unlocked!
 ```
 
 ---
 
-## 🏗️ Architecture
+## 🏗️ Architecture Overview
 
-![ZeroWaste Protocol Architecture](docs/architecture.svg)
+```mermaid
+graph TB
+    subgraph UI["🧑‍💻 User Interface"]
+        TG["Telegram Bot<br/><i>/start · /dust · /setdust · /history · paste URL</i>"]
+    end
 
-### System Layers
+    subgraph AI["🧠 AI Intent Engine"]
+        NLP["Groq LLaMA 3.3 70B<br/><i>IntentParser.ts</i>"]
+    end
 
-| Layer | Components |
-|---|---|
-| **User Interface** | Telegram Bot with inline keyboards |
-| **AI Layer** | Groq LLaMA 3.3 70B — Natural language intent parsing |
-| **Core Services** | WalletScanner · TxSimulator · TokenEnricher · SwapRouter |
-| **Execution** | OKX Agentic Wallet (onchainos CLI) · OKX Gateway tracking |
-| **Blockchain** | X Layer Mainnet (Chain ID: 196) |
+    subgraph CORE["⚙️ Core Services — OKX Onchain OS Skills"]
+        direction LR
+        WS["📊 WalletScanner<br/><i>okx-wallet-portfolio</i>"]
+        TX["🛡️ TxSimulator<br/><i>okx-security</i>"]
+        TE["💲 TokenEnricher<br/><i>okx-dex-token</i>"]
+        SR["🔄 SwapRouter<br/><i>okx-dex-swap</i>"]
+    end
 
----
+    subgraph EXEC["🚀 Execution Layer"]
+        direction LR
+        AW["🔐 AgenticWallet<br/><i>okx-agentic-wallet<br/>onchainos CLI</i>"]
+        PV["📡 PaymentVerifier<br/><i>okx-onchain-gateway</i>"]
+        AL["📋 AuditLog<br/><i>okx-audit-log</i>"]
+        X4["💳 x402 Handler<br/><i>okx-x402-payment</i>"]
+    end
 
-## 🔧 OKX Onchain OS Skills (8 Integrated)
+    subgraph CHAIN["⛓️ X Layer Mainnet · Chain ID: 196"]
+        DEX["OKX DEX Aggregator<br/><i>500+ liquidity sources</i>"]
+        SC["DustSweeperMulticall.sol<br/><i>Atomic fallback contract</i>"]
+        MERCH["x402 Merchant<br/><i>Receives USDT payment</i>"]
+    end
 
-| Skill | Integration | What It Does |
+    TG --> NLP
+    NLP --> X4
+    X4 --> WS
+    WS --> TX
+    TX --> TE
+    TE --> SR
+    SR --> AW
+    AW --> DEX
+    AW --> SC
+    AW --> MERCH
+    PV -.->|"tracks tx status"| DEX
+    PV -.->|"confirms payment"| MERCH
+    AL -.->|"queries history"| CHAIN
+
+    style UI fill:#1a1a2e,stroke:#58a6ff,color:#e6edf3
+    style AI fill:#2a1b41,stroke:#8957e5,color:#e6edf3
+    style CORE fill:#0f2a1b,stroke:#238636,color:#e6edf3
+    style EXEC fill:#1a2332,stroke:#1f6feb,color:#e6edf3
+    style CHAIN fill:#2a1f0f,stroke:#e36a00,color:#e6edf3
+```
+
+### How the Layers Connect
+
+| Layer | Role | Components |
 |---|---|---|
-| `okx-agentic-wallet` | `AgenticWallet.ts` | TEE-secured agent wallet per user — signs every tx via onchainos CLI with mutex protection |
-| `okx-wallet-portfolio` | `WalletScanner.ts` | Scans agent wallet for dust tokens on X Layer via OKX Portfolio API |
-| `okx-dex-swap` | `SwapRouter.ts` | Computes optimal swap routes (dust → USDT) via OKX DEX Aggregator V6 across 500+ DEX sources |
-| `okx-dex-token` | `TokenEnricher.ts` | Enriches dust token prices with live DEX quotes before basket selection for real-time accuracy |
-| `okx-x402-payment` | `bot/index.ts` | Handles HTTP 402 payment protocol — detects paywalls, parses payment requirements |
-| `okx-onchain-gateway` | `PaymentVerifier.ts` | Tracks transaction status post-broadcast via OKX Gateway API (`transaction-detail-by-txhash`) |
-| `okx-security` | `TxSimulator.ts` | Pre-filters risk tokens from dust basket; validates txs via OKX pre-transaction API |
-| `okx-audit-log` | `AuditLog.ts` | Queries on-chain transaction history for the `/history` command — immutable payment audit trail |
+| **User Interface** | Accepts natural language or URLs via Telegram | Bot command handlers, inline keyboards |
+| **AI Engine** | Parses user intent from free-form text | Groq LLaMA 3.3 70B (IntentParser.ts) |
+| **Core Services** | Scans, validates, prices, and routes dust tokens | WalletScanner → TxSimulator → TokenEnricher → SwapRouter |
+| **Execution** | Signs txs, tracks confirmations, handles x402 protocol | AgenticWallet (onchainos CLI), PaymentVerifier, AuditLog |
+| **Blockchain** | On-chain settlement on X Layer Mainnet | OKX DEX Aggregator, DustSweeperMulticall contract, merchant wallets |
 
 ---
 
-## 🔄 Payment Flow — Sequence Diagrams
+## 📄 Deployment Address
 
-### Scenario 1: Direct USDT Payment (Fast Path)
+### `DustSweeperMulticall.sol` — X Layer Mainnet
+
+| Property | Value |
+|---|---|
+| **Contract Address** | [`0x1E52781EC86C99C972f30366dA493c780a54ED8c`](https://www.okx.com/web3/explorer/xlayer/address/0x1E52781EC86C99C972f30366dA493c780a54ED8c) |
+| **Chain** | X Layer Mainnet (Chain ID: 196) |
+| **Purpose** | Atomic multicall fallback — executes batched swap calls, verifies USDT output meets x402 requirement, forwards payment. Reverts entirely if output is insufficient, protecting user tokens. |
+
+### Agent Wallet (Agentic OS)
+Each user gets a dedicated TEE-secured agent wallet created via the OKX onchainos CLI. The bot creates and manages these wallets automatically on `/start`.
+
+---
+
+## 🔧 Onchain OS Skill Usage (8 Skills Integrated)
+
+| # | Skill | Service File | How It's Used |
+|---|---|---|---|
+| 1 | `okx-agentic-wallet` | `AgenticWallet.ts` | Creates a TEE-secured agent wallet per user via onchainos CLI. All on-chain transactions (approvals, swaps, transfers) are signed through this wallet with mutex-protected account switching for multi-user safety. |
+| 2 | `okx-wallet-portfolio` | `WalletScanner.ts` | Queries the OKX Portfolio API (`/api/v5/wallet/asset/all-token-balances-by-address`) to discover all tokens in the user's agent wallet on X Layer, including balances, prices, and risk flags. |
+| 3 | `okx-dex-swap` | `SwapRouter.ts` | Computes optimal swap routes via OKX DEX Aggregator V6 (`/api/v6/dex/aggregator/swap`) to convert each dust token → USDT. Routes are computed in parallel for multi-token baskets across 500+ DEX liquidity sources. |
+| 4 | `okx-dex-token` | `TokenEnricher.ts` | Fetches live DEX quotes (`/api/v6/dex/aggregator/quote`) for each dust token before basket selection. If the live price diverges >2% from the portfolio price, the token's value is updated for more accurate swap decisions. |
+| 5 | `okx-x402-payment` | `bot/index.ts` | Detects HTTP 402 responses from merchant servers, parses the `x402` JSON payment requirement (amount, recipient, token), and orchestrates the full payment flow from dust sweep to content delivery. |
+| 6 | `okx-onchain-gateway` | `PaymentVerifier.ts` | After each transaction broadcast, polls the OKX Gateway API (`/api/v5/wallet/post-transaction/transaction-detail-by-txhash`) for confirmation status instead of relying solely on local RPC — providing OKX-verified finality. |
+| 7 | `okx-security` | `TxSimulator.ts` | Pre-filters tokens flagged `isRiskToken: true` from the dust basket before any swap attempt. Prevents the agent from interacting with honeypot or malicious token contracts. |
+| 8 | `okx-audit-log` | `AuditLog.ts` | Queries on-chain transaction history via OKX post-transaction API (`/api/v5/wallet/post-transaction/list-transactions-by-address`). Powers the `/history` bot command, giving users an immutable audit trail of all sweep payments. |
+
+---
+
+## 🔄 Working Mechanics
+
+### The Checkout Loop — Step by Step
 
 ```mermaid
 sequenceDiagram
     actor User
     participant Bot as ZeroWaste Bot
-    participant Groq as Groq LLaMA 3.3
-    participant Merchant as x402 Merchant
-    participant Chain as X Layer Mainnet
-
-    User->>Bot: "pay for this: http://..."
-    Bot->>Groq: parse intent
-    Groq-->>Bot: {type: "pay_url", url: "..."}
-    Bot->>Merchant: GET /premium-article
-    Merchant-->>Bot: 402 + {amount: "0.12 USDT", recipient: "0x2fBa..."}
-    Bot->>Bot: scan dust — USDT balance ≥ required
-    Bot-->>User: 💬 Propose direct USDT payment
-    User->>Bot: ✅ Approve
-    Bot->>Chain: transfer USDT → merchant
-    Chain-->>Bot: tx confirmed (OKX Gateway)
-    Bot->>Merchant: retry GET /premium-article
-    Merchant-->>Bot: 200 + content
-    Bot-->>User: 🎉 Access unlocked!
-```
-
-### Scenario 2: Single-Token Dust Sweep (Core Flow)
-
-```mermaid
-sequenceDiagram
-    actor User
-    participant Bot as ZeroWaste Bot
-    participant OKXPortfolio as OKX Portfolio API
-    participant OKXSecurity as OKX Security API
-    participant OKXToken as OKX DEX Token API
-    participant OKXSwap as OKX DEX Swap API
+    participant Groq as Groq LLaMA 3.3 70B
+    participant Merchant as x402 Merchant Server
+    participant Portfolio as OKX Portfolio API
+    participant Security as OKX Security API
+    participant DEXToken as OKX DEX Token API
+    participant DEXSwap as OKX DEX Swap API
     participant Wallet as OKX Agentic Wallet
     participant Gateway as OKX Gateway API
-    participant Chain as X Layer Mainnet
+    participant XLayer as X Layer Mainnet
 
-    User->>Bot: "pay for this: http://..."
-    Bot->>OKXPortfolio: scan dust tokens
-    OKXPortfolio-->>Bot: [WOKB: 0.0044, ~$0.37]
-    Bot->>OKXSecurity: filter risk tokens
-    OKXSecurity-->>Bot: [WOKB: ✅ safe]
-    Bot->>OKXToken: enrich with live DEX prices
-    OKXToken-->>Bot: WOKB: $0.2484 (DEX quote)
-    Bot->>OKXSwap: get WOKB→USDT route
-    OKXSwap-->>Bot: swap calldata + approve calldata
-    Bot-->>User: 💬 Propose: sweep WOKB → $0.12 USDT
-    User->>Bot: ✅ Approve
-    Bot->>Wallet: onchainos approve WOKB
-    Wallet->>Chain: approve tx
-    Bot->>Gateway: track approve tx
-    Gateway-->>Bot: ✅ confirmed block N
-    Bot->>Wallet: onchainos execute swap
-    Wallet->>Chain: swap tx
-    Bot->>Gateway: track swap tx
-    Gateway-->>Bot: ✅ confirmed block N
-    Bot->>Wallet: transfer USDT → merchant
-    Wallet->>Chain: transfer tx
-    Bot->>Gateway: track payment tx
-    Gateway-->>Bot: ✅ confirmed block N
-    Bot-->>User: 🎉 Paid & unlocked!
+    User->>Bot: "pay for this article: http://..."
+    Bot->>Groq: Parse intent from natural language
+    Groq-->>Bot: {intent: pay_url, url: "http://..."}
+
+    Bot->>Merchant: GET /premium-article
+    Merchant-->>Bot: HTTP 402 + x402 JSON {amount, recipient, token}
+
+    Bot->>Portfolio: Scan agent wallet for dust tokens
+    Portfolio-->>Bot: [WOKB $0.25, OKB $0.03, USDT $0.01]
+
+    Bot->>Security: Filter risk tokens from basket
+    Security-->>Bot: 2 safe, 0 risky
+
+    Bot->>DEXToken: Enrich with live DEX quotes
+    DEXToken-->>Bot: WOKB: $0.2484 (within 0.11%)
+
+    Bot->>Bot: Select optimal dust basket (target + 5% slippage)
+    Bot->>DEXSwap: Compute WOKB → USDT swap route
+    DEXSwap-->>Bot: Swap calldata + expected output
+
+    Bot-->>User: 💬 Proposal: Sweep WOKB → $0.13 USDT → pay $0.12
+    User->>Bot: ✅ Approve & Pay
+
+    Bot->>Wallet: onchainos approve WOKB for DEX router
+    Wallet->>XLayer: Approve transaction
+    Bot->>Gateway: Track approve tx
+    Gateway-->>Bot: ✅ Confirmed — block 57495184
+
+    Bot->>Wallet: onchainos execute swap WOKB → USDT
+    Wallet->>XLayer: Swap transaction
+    Bot->>Gateway: Track swap tx
+    Gateway-->>Bot: ✅ Confirmed — block 57495189
+
+    Bot->>Wallet: onchainos transfer USDT → merchant
+    Wallet->>XLayer: Payment transaction
+    Bot->>Gateway: Track payment tx
+    Gateway-->>Bot: ✅ Confirmed — block 57495194
+
+    Bot->>Merchant: Retry GET /premium-article (with payment proof)
+    Merchant-->>Bot: HTTP 200 + unlocked content
+    Bot-->>User: 🎉 Content unlocked!
 ```
 
-### Scenario 3: Multi-Token Basket Sweep
+### Three Payment Scenarios
 
-```mermaid
-sequenceDiagram
-    actor User
-    participant Bot as ZeroWaste Bot
-    participant Scanner as WalletScanner
-    participant Router as SwapRouter
-    participant Chain as X Layer Mainnet
+| Scenario | When It Triggers | What Happens |
+|---|---|---|
+| **Direct Pay** | Agent wallet already has enough USDT | Skip dust sweep, transfer USDT directly to merchant |
+| **Single-Token Sweep** | One dust token alone covers the required amount | Approve → Swap that token → USDT → Pay merchant |
+| **Multi-Token Basket** | No single token is sufficient | Select optimal combination, route swaps in parallel, then pay |
 
-    User->>Bot: paste paywalled URL ($2.00)
-    Bot->>Scanner: scan dust
-    Scanner-->>Bot: [TokenA: $0.80, TokenB: $1.50, TokenC: $0.30]
-    Bot->>Bot: selectDustBasket(target=$2.00, slippage=5%)
-    Bot->>Router: compute routes for [TokenA, TokenB] in parallel
-    Router-->>Bot: [route_A, route_B]
-    Bot-->>User: 💬 Propose: sweep TokenA + TokenB → $2.10 USDT
-    User->>Bot: ✅ Approve
-    loop For each token in basket
-        Bot->>Chain: approve token for DEX
-        Bot->>Chain: swap token → USDT
-    end
-    Bot->>Chain: transfer $2.00 USDT → merchant
-    Bot-->>User: 🎉 Paid with combined dust!
-```
+### Key Design Decisions
+
+- **OKX DEX Aggregator over raw Uniswap** — Better fill rates for small, illiquid token swaps on X Layer
+- **Sequential approve → swap** over atomic multicall — More reliable with varied ERC20 approval patterns
+- **5% slippage buffer** in basket selection — Accounts for price movement between quote and execution
+- **Parallel route computation** — All swap routes computed via `Promise.all` for speed
+- **Groq LLaMA 3.3 70B** — Ultra-low latency inference (<200ms) for responsive conversational UX
+- **Mutex-protected onchainos CLI** — Prevents concurrent account-switching conflicts in multi-user scenarios
+- **Configurable dust threshold** — Users set their own definition of "dust" via `/setdust` (default: $50, range: $0.50–$500)
 
 ---
 
-## 📄 Smart Contract
+## 👥 Team Members
 
-### `DustSweeperMulticall.sol`
-
-Deployed on **X Layer Mainnet** (Chain ID: 196).
-
-**Address:** [`0x1E52781EC86C99C972f30366dA493c780a54ED8c`](https://www.okx.com/web3/explorer/xlayer/address/0x1E52781EC86C99C972f30366dA493c780a54ED8c)
-
-Provides an **atomic fallback path**: executes all swap calls in a single transaction, verifies total USDT output meets the x402 requirement, then forwards payment. If any swap produces insufficient USDT, the **entire transaction reverts** — protecting user tokens.
+| Name | Role | GitHub |
+|---|---|---|
+| Sharwin | Full-stack development & architecture | [@Raksha001](https://github.com/Raksha001) |
 
 ---
 
-## 🤖 Bot Commands
+## 🏆 Project Positioning in the X Layer Ecosystem
 
-| Command | Description |
+### Why X Layer?
+
+X Layer's **ultra-low gas fees** (fractions of a cent per tx) are what make ZeroWaste Protocol economically viable. On Ethereum mainnet, the gas cost of swapping a $0.25 dust token would exceed the token's value. On X Layer, the agent can execute 3 transactions (approve + swap + transfer) for under $0.01 in gas — making micro-dust liquidation profitable for the first time.
+
+### Ecosystem Contributions
+
+| Dimension | Contribution |
 |---|---|
-| `/start` | Create your TEE-secured agent wallet |
-| `/wallet` | View your agent wallet address + explorer link |
-| `/dust` | Scan your agent wallet for dust tokens |
-| `/setdust <amount>` | Set your personal dust threshold (e.g. `/setdust 5`) |
-| `/history` | View your on-chain sweep payment history (audit log) |
-| `/help` | Show all commands |
-| _paste any URL_ | Detect paywall and initiate sweep payment |
-| _natural language_ | "pay for this article [URL]", "how much dust do I have?" |
+| **Real-world x402 utility** | Not just a payment demo — a complete paywall detection → dust liquidation → payment → content delivery cycle operating on X Layer Mainnet with real transactions |
+| **Deep Onchain OS integration** | 8 OKX Onchain OS skills integrated in a single coherent agent flow — portfolio scanning, DEX routing, security filtering, price enrichment, gateway tracking, audit logging, agentic wallet management, and x402 protocol handling |
+| **Economy loop** | Idle dust tokens (dead capital) → USDT (active capital) → merchant revenue → content access → user value. A complete earn–pay–earn cycle that increases X Layer transaction volume and DEX utilization |
+| **AI-native UX** | Users interact in natural language via Telegram, powered by Groq LLaMA 3.3 70B. No wallet UI, no manual swaps, no DEX navigation — just conversational payments |
+| **Agentic autonomy** | The bot independently identifies, prices, validates, routes, and executes payments without human intervention beyond final approval — demonstrating the power of OKX's agentic infrastructure on X Layer |
 
 ---
 
@@ -191,8 +254,8 @@ Provides an **atomic fallback path**: executes all swap calls in a single transa
 
 - Node.js 18+
 - [Telegram Bot Token](https://t.me/BotFather)
-- [OKX API credentials](https://web3.okx.com/onchain-os/dev-portal) with `OK-ACCESS-PROJECT`
-- [Groq API key](https://console.groq.com/keys) (for natural language parsing)
+- [OKX API credentials](https://web3.okx.com/onchain-os/dev-portal) (API key, secret, passphrase, project ID)
+- [Groq API key](https://console.groq.com/keys) for natural language parsing
 - OKB on X Layer for gas
 
 ### Installation
@@ -207,95 +270,67 @@ npm install
 
 ```bash
 cp .env.example .env
-# Fill in your credentials:
-# TELEGRAM_BOT_TOKEN=...
-# OKX_API_KEY=...
-# OKX_SECRET_KEY=...
-# OKX_PASSPHRASE=...
-# OKX_PROJECT_ID=...
-# GROQ_API_KEY=...
-# NETWORK=mainnet
+```
+
+Required environment variables:
+```
+TELEGRAM_BOT_TOKEN=...
+OKX_API_KEY=...
+OKX_SECRET_KEY=...
+OKX_PASSPHRASE=...
+OKX_PROJECT_ID=...
+GROQ_API_KEY=...
+NETWORK=mainnet
+DUST_SWEEPER_CONTRACT=0x1E52781EC86C99C972f30366dA493c780a54ED8c
 ```
 
 ### Run
 
 ```bash
-# Start everything (merchant + bot)
-npm run dev
-
-# Or separately:
-npm run start:merchant   # Mock x402 paywall server on :3001
-npm run start:bot        # Telegram bot
+npm run dev   # Starts both merchant server (:3001) and Telegram bot
 ```
 
-### Test the Full Flow
+### Bot Commands
 
-```bash
-# In Telegram, send to your bot:
-http://localhost:3001/premium-article   # $0.12 paywall
-http://localhost:3001/premium-news      # $0.30 paywall
-http://localhost:3001/api-access        # $2.00 paywall
-```
-
----
-
-## 🏆 Hackathon Prize Alignment
-
-| Prize Category | How ZeroWaste Protocol Qualifies |
+| Command | Description |
 |---|---|
-| **Best x402 Application** | Complete end-to-end x402 implementation: paywall detection → payment → content unlock on X Layer Mainnet |
-| **Most Active Agent** | Autonomous agent executes 3 on-chain transactions per payment (approve + swap + transfer) with real mainnet tx hashes |
-| **Best MCP Integration** | onchainos CLI as the agentic wallet backbone; 8 OKX Onchain OS skills integrated |
-| **Best Economy Loop** | Dust tokens (idle value) → USDT (active value) → merchant revenue → content access — a complete circular economy |
-
----
-
-## 🔑 Key Design Decisions
-
-- **OKX DEX Aggregator over raw DEX** — Better fill rates for small/illiquid dust token swaps on X Layer
-- **Sequential approve → swap** over atomic multicall for primary path — more reliable with varied ERC20 approvals
-- **WOKB as primary test token** — Native-wrapped OKB has deep liquidity guaranteeing DEX routing success
-- **5% slippage buffer** in basket selection — accounts for price movement between quote and execution
-- **Groq LLaMA 3.3 70B** — Fastest inference available, critical for a responsive Telegram bot feel
-- **Mutex-protected wallet switching** — Prevents concurrent onchainos account conflicts for multi-user scenarios
+| `/start` | Create your TEE-secured agent wallet |
+| `/wallet` | View agent wallet address + explorer link |
+| `/dust` | Scan for dust tokens in your wallet |
+| `/setdust <n>` | Set your dust threshold (e.g. `/setdust 5` = tokens < $5) |
+| `/history` | View on-chain sweep payment history |
+| `/help` | Show all commands |
+| _paste URL_ | Auto-detect x402 paywall and initiate sweep |
+| _natural language_ | "pay for this article", "how much dust do I have?" |
 
 ---
 
 ## 📁 Project Structure
 
 ```
-src/
-├── bot/
-│   └── index.ts              # Main bot logic, all command handlers
-├── services/
-│   ├── AgenticWallet.ts      # onchainos CLI wrapper (okx-agentic-wallet)
-│   ├── WalletScanner.ts      # Dust token discovery (okx-wallet-portfolio)
-│   ├── SwapRouter.ts         # DEX route computation (okx-dex-swap)
-│   ├── TokenEnricher.ts      # Live price enrichment (okx-dex-token)
-│   ├── TxSimulator.ts        # Risk filter + tx simulation (okx-security)
-│   ├── PaymentVerifier.ts    # Tx confirmation (okx-onchain-gateway)
-│   ├── AuditLog.ts           # Transaction history (okx-audit-log)
-│   ├── IntentParser.ts       # Groq LLM intent parsing
-│   ├── OkxApiClient.ts       # HMAC-authenticated OKX API client
-│   └── UserWalletStore.ts    # Persistent user wallet + preferences
-├── merchant/
-│   └── server.ts             # Mock x402 paywall server
-├── scripts/                  # Setup & funding utilities
-└── config/
-    └── network.ts            # X Layer mainnet/testnet config
-contracts/
-└── DustSweeperMulticall.sol  # Atomic multicall fallback contract
-docs/
-└── architecture.png          # System architecture diagram
+ZeroWaste-Protocol/
+├── src/
+│   ├── bot/index.ts              # Telegram bot — commands, NLP, payment flow
+│   ├── services/
+│   │   ├── AgenticWallet.ts      # onchainos CLI wrapper       (okx-agentic-wallet)
+│   │   ├── WalletScanner.ts      # Dust token discovery        (okx-wallet-portfolio)
+│   │   ├── SwapRouter.ts         # DEX route computation       (okx-dex-swap)
+│   │   ├── TokenEnricher.ts      # Live DEX price enrichment   (okx-dex-token)
+│   │   ├── TxSimulator.ts        # Risk filter + simulation    (okx-security)
+│   │   ├── PaymentVerifier.ts    # Tx confirmation tracking    (okx-onchain-gateway)
+│   │   ├── AuditLog.ts           # Transaction history         (okx-audit-log)
+│   │   ├── IntentParser.ts       # Groq LLaMA 3.3 NLP
+│   │   ├── OkxApiClient.ts       # HMAC-authenticated API client
+│   │   └── UserWalletStore.ts    # Persistent user preferences
+│   ├── merchant/server.ts        # Mock x402 paywall server
+│   ├── config/network.ts         # X Layer network config
+│   ├── scripts/                  # Setup & funding utilities
+│   └── test/                     # E2E test runner
+├── contracts/
+│   └── DustSweeperMulticall.sol  # Atomic swap fallback contract
+└── docs/
+    └── architecture.svg          # Architecture diagram
 ```
-
----
-
-## 👥 Team
-
-| Name | Role |
-|---|---|
-| Sharwin | Full-stack development & architecture |
 
 ---
 
