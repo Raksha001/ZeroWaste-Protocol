@@ -268,6 +268,22 @@ npm run dev   # Starts both merchant server (:3001) and Telegram bot
 
 ---
 
+## 🔗 Live Demo & Testing Endpoints
+
+- **Telegram Bot**: [ZeroWaste Protocol](https://t.me/Smart_sweep_checkout_bot)
+
+You can test the ZeroWaste Protocol's x402 detection by pasting these URLs into the bot:
+
+- **Premium Article ($0.12)**: [https://zerowaste-protocol.onrender.com/premium-article](https://zerowaste-protocol.onrender.com/premium-article)
+- **Premium News ($0.30 — two-token demo)**: [https://zerowaste-protocol.onrender.com/premium-news](https://zerowaste-protocol.onrender.com/premium-news)
+- **API Access ($2.00)**: [https://zerowaste-protocol.onrender.com/api-access](https://zerowaste-protocol.onrender.com/api-access)
+
+---
+
+- **Local Dev Endpoints**: `http://localhost:3001/premium-article`, `/premium-news`, `/api-access` (When running locally)
+
+---
+
 ## 📁 Project Structure
 
 ```
