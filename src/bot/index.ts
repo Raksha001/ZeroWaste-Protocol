@@ -25,10 +25,9 @@ if (!BOT_TOKEN) {
   process.exit(1);
 }
 
-if (!process.env.AGENT_ACCOUNT_ID && !process.env.AGENT_PRIVATE_KEY) {
-  console.error("❌ Either AGENT_ACCOUNT_ID (onchainos) or AGENT_PRIVATE_KEY (ethers) is required in .env");
-  process.exit(1);
-}
+// Note: AGENT_ACCOUNT_ID or AGENT_PRIVATE_KEY are no longer required globally.
+// The bot now uses UserWalletStore to automatically create/manage per-user agent wallets
+// with an onchainos TEE <-> ethers.js fallback.
 
 const bot = new Telegraf(BOT_TOKEN);
 const verifier = new PaymentVerifier();
