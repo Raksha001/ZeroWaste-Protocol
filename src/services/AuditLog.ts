@@ -54,12 +54,12 @@ export class AuditLog {
       }
 
       return rawList.slice(0, limit).map((tx: any): TxRecord => ({
-        txHash:     tx.txHash || tx.hash || "",
-        txTime:     tx.txTime ? new Date(parseInt(tx.txTime)).toLocaleString() : "unknown",
-        txStatus:   tx.txStatus || tx.status || "unknown",
-        symbol:     tx.tokenSymbol || tx.symbol,
-        amount:     tx.amount || tx.value,
-        txType:     tx.txType || tx.type,
+        txHash: tx.txHash || tx.hash || "",
+        txTime: tx.txTime ? new Date(parseInt(tx.txTime)).toLocaleString() : "unknown",
+        txStatus: tx.txStatus || tx.status || "unknown",
+        symbol: tx.tokenSymbol || tx.symbol,
+        amount: tx.amount || tx.value,
+        txType: tx.txType || tx.type,
         explorerUrl: `${networkConfig.explorerUrl}/tx/${tx.txHash || tx.hash}`,
       }));
     } catch (err: any) {
@@ -88,7 +88,7 @@ export class AuditLog {
     for (const tx of records) {
       const statusEmoji = tx.txStatus === "success" ? "✅"
         : tx.txStatus === "failed" ? "❌"
-        : "⏳";
+          : "⏳";
 
       const hashShort = tx.txHash ? `${tx.txHash.slice(0, 8)}...${tx.txHash.slice(-6)}` : "?";
       msg += `${statusEmoji} [${hashShort}](${tx.explorerUrl})`;
